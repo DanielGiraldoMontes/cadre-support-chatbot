@@ -11,6 +11,9 @@ export function MessageBubble({ message, loading }: Props) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
+        data-testid="message-bubble"
+        data-role={message.role}
+        data-escalated={Boolean(message.escalated)}
         className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
             ? "bg-cadre-primary text-cadre-primary-foreground"
