@@ -1,30 +1,23 @@
-# Firebase App Hosting runtime config (CLAUDE.md Section 30/31).
-# NEXT_PUBLIC_* values aren't secret but still need to reach the build/runtime;
-# fill them in here or override per-environment in the Firebase console.
-# OPENROUTER_API_KEY and SUPABASE_SERVICE_ROLE_KEY are real secrets — store
-# them in Google Secret Manager (`firebase apphosting:secrets:set <name>`)
-# and reference them by name below, never as literal `value:` entries.
+# Firebase App Hosting configuration.
+#
+# Keep only runtime defaults and true secrets here. Public environment values
+# for this project are configured in the Firebase Console for the backend.
 
 runConfig:
+  runtime: nodejs20
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
   minInstances: 0
+  maxInstances: 10
 
 env:
-  - variable: NEXT_PUBLIC_SUPABASE_URL
-    value: ""
-    availability: [BUILD, RUNTIME]
-
-  - variable: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    value: ""
-    availability: [BUILD, RUNTIME]
-
-  - variable: OPENROUTER_MODEL
-    value: ""
-    availability: [RUNTIME]
-
   - variable: OPENROUTER_API_KEY
     secret: OPENROUTER_API_KEY
-    availability: [RUNTIME]
+    availability:
+      - RUNTIME
 
   - variable: SUPABASE_SERVICE_ROLE_KEY
     secret: SUPABASE_SERVICE_ROLE_KEY
-    availability: [RUNTIME]
+    availability:
+      - RUNTIME
