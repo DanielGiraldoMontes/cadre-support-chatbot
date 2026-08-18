@@ -34,14 +34,6 @@ flowchart TD
   DB --> UI
 ```
 
-### Why this shape
-
-- `Next.js` keeps the app simple to build and deploy.
-- `Supabase` gives us a straightforward Postgres-backed store for conversations, messages, escalations, and rate limits.
-- `OpenRouter` is the single production AI provider.
-- Deterministic topic lookup keeps Cadre knowledge answers auditable and cheap to test.
-- A mock LLM provider keeps local development and automated tests free.
-
 ## What the assistant can do
 
 - answer supported Cadre questions with grounded content
@@ -86,7 +78,7 @@ Expected variables:
 - `OPENROUTER_MODEL`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` only if the final implementation truly needs it on the server
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_BACKEND_ID`
 - `FIREBASE_REGION`
@@ -117,7 +109,6 @@ This is intentionally conservative so broken code does not roll out automaticall
 
 ## Known limits
 
-- Semantic fallback is optional and only builds if time remains.
 - Multi-device sync is not part of the initial scope.
 - The app should prefer safe escalation over guesswork.
 
