@@ -10,7 +10,9 @@ const fakeEmbeddingProvider: EmbeddingProvider = {
 
 function fakeSupabase(response: { data?: unknown; error?: unknown }) {
   return {
-    rpc: async () => response,
+    rpc: () => ({
+      abortSignal: () => Promise.resolve(response),
+    }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -51,6 +53,20 @@ describe("semanticFallback", () => {
     const supabase = fakeSupabase({ data: [] });
 
     const result = await semanticFallback("what does cadre do", brokenEmbeddingProvider, supabase);
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null (not a throw) when the RPC returns a topic_id outside KNOWLEDGE_TOPICS", async () => {
+    // Guards a real bug caught by an AI-delegated review: a stale row in
+    // knowledge_embeddings (e.g. after a topic was renamed but
+    // `npm run embed:knowledge` wasn't rerun) must degrade to escalation,
+    // not flow an unrecognized id into KNOWLEDGE_TOPICS[id] downstream.
+    const supabase = fakeSupabase({
+      data: [{ topic_id: "not-a-real-topic", similarity: SIMILARITY_THRESHOLD + 0.1 }],
+    });
+
+    const result = await semanticFallback("some paraphrased question", fakeEmbeddingProvider, supabase);
 
     expect(result).toBeNull();
   });

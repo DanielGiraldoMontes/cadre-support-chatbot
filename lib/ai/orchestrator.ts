@@ -148,7 +148,7 @@ export async function runOrchestrator(
       const fallbackTopic = await semanticFallback(message, embeddingProvider, supabase);
       if (fallbackTopic) topics = [fallbackTopic];
     } catch (error) {
-      console.error("Semantic fallback unavailable, escalating", error);
+      console.error("Semantic fallback misconfigured (check OPENROUTER_EMBEDDING_MODEL / Supabase env vars), escalating", error);
     }
   }
 
