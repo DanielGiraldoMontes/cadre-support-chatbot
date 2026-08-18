@@ -1,6 +1,8 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getEmbeddingProvider } from "@/lib/ai/getEmbeddingProvider";
 import { getProvider } from "@/lib/ai/getProvider";
 import { SYSTEM_PROMPT, buildIntentClassificationPrompt } from "@/lib/ai/prompts";
-import { ProviderError, type LLMProvider } from "@/lib/ai/provider";
+import { ProviderError, type EmbeddingProvider, type LLMProvider } from "@/lib/ai/provider";
 import { IntentClassificationSchema } from "@/lib/ai/schemas";
 import { getBookingTopics } from "@/lib/business/booking";
 import {
@@ -12,6 +14,8 @@ import type { Intent } from "@/lib/business/intents";
 import { getPortalTopics } from "@/lib/business/portal";
 import { selectTopics } from "@/lib/business/topicRouting";
 import { KNOWLEDGE_TOPICS, type TopicId } from "@/lib/knowledge/generated";
+import { semanticFallback } from "@/lib/knowledge/semanticFallback";
+import { createServiceClient } from "@/lib/supabase/serviceClient";
 import type { StoredMessage } from "@/lib/supabase/repository";
 
 // Bound how much history feeds the (cheaper, structured) classification call.
@@ -28,6 +32,11 @@ export interface OrchestratorResult {
   intent: Intent;
   matchedTopics: TopicId[];
   escalation: EscalationResult | null;
+}
+
+export interface OrchestratorDeps {
+  embeddingProvider?: EmbeddingProvider;
+  supabase?: SupabaseClient;
 }
 
 async function classifyIntent(
@@ -125,10 +134,23 @@ async function generateGroundedReply(
 export async function runOrchestrator(
   input: OrchestratorInput,
   provider: LLMProvider = getProvider(),
+  deps?: OrchestratorDeps,
 ): Promise<OrchestratorResult> {
   const message = input.message.trim();
   const intent = await classifyIntent(provider, message, input.history);
-  const topics = resolveTopics(intent, message, input.history);
+  let topics = resolveTopics(intent, message, input.history);
+
+  // Step 2 semantic fallback (CLAUDE.md Section 9) — only tried when Step 1
+  if (topics.length === 0 && intent === "KNOWLEDGE") {
+    try {
+      const embeddingProvider = deps?.embeddingProvider ?? getEmbeddingProvider();
+      const supabase = deps?.supabase ?? createServiceClient();
+      const fallbackTopic = await semanticFallback(message, embeddingProvider, supabase);
+      if (fallbackTopic) topics = [fallbackTopic];
+    } catch (error) {
+      console.error("Semantic fallback unavailable, escalating", error);
+    }
+  }
 
   if (topics.length === 0) {
     const escalation = buildEscalation(escalationReasonFor(intent));

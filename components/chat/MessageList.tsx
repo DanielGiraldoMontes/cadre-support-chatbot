@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ChatMessage } from "@/lib/chat/types";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { StarterPrompts } from "@/components/chat/StarterPrompts";
@@ -9,6 +10,12 @@ interface Props {
 }
 
 export function MessageList({ messages, loading, onStarterPromptSelect }: Props) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length, loading]);
+
   if (messages.length === 0 && !loading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
@@ -24,13 +31,14 @@ export function MessageList({ messages, loading, onStarterPromptSelect }: Props)
   }
 
   return (
-    <div className="flex-1 space-y-4 overflow-y-auto px-4 py-6">
+    <div className="flex-1 space-y-4 overflow-y-auto px-4 py-6" aria-live="polite">
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
       {loading && (
         <MessageBubble message={{ id: "loading", role: "assistant", content: "" }} loading />
       )}
+      <div ref={bottomRef} />
     </div>
   );
 }

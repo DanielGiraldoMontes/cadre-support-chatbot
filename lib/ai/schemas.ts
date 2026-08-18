@@ -13,3 +13,8 @@ export const ChatRequestSchema = z.object({
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+// openai/text-embedding-3-small via OpenRouter — 1536 dimensions (CLAUDE.md Section 9, Step 2).
+export const EmbeddingResponseSchema = z.object({
+  data: z.array(z.object({ embedding: z.array(z.number()).length(1536) })).min(1),
+});

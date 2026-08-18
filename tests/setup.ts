@@ -1,5 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 
+// jsdom doesn't implement scrollIntoView (used for auto-scroll-to-latest-
+// message in MessageList) — every real browser does, so this is a test
+// environment gap, not something production code should defend against.
+if (typeof window !== "undefined" && !window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+}
+
 // Node 22+ ships an experimental global `localStorage` that, depending on
 // version/flags, can end up shadowing jsdom's implementation and leaving
 // `window.localStorage` undefined. Force jsdom's own storage in whenever

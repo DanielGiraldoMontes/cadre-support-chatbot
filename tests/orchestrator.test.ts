@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runOrchestrator } from "@/lib/ai/orchestrator";
-import type { LLMInput, LLMProvider, LLMResponse } from "@/lib/ai/provider";
+import type { EmbeddingProvider, LLMInput, LLMProvider, LLMResponse } from "@/lib/ai/provider";
+import { selectTopics } from "@/lib/business/topicRouting";
 
 function fakeProvider(opts: {
   intent: string;
@@ -98,6 +99,32 @@ describe("runOrchestrator", () => {
     );
 
     expect(result.matchedTopics).toEqual(["industries"]);
+  });
+
+  it("uses the semantic fallback when Step 1 finds nothing for a KNOWLEDGE question", async () => {
+    const provider = fakeProvider({
+      intent: "KNOWLEDGE",
+      reply: "Yes — our AI Maturity Index scores a business across eight pillars.",
+    });
+    const fakeEmbeddingProvider: EmbeddingProvider = { async embed() { return [0.1, 0.2, 0.3]; } };
+    const fakeSupabase = {
+      rpc: async () => ({ data: [{ topic_id: "ai-maturity-index", similarity: 0.86 }] }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const message = "How do you measure how AI-ready a company is?";
+    // Sanity-check the premise: this phrasing must NOT already match via
+    // Step 1 keyword lookup, or the test wouldn't be exercising Step 2 at all.
+    expect(selectTopics(message)).toEqual([]);
+
+    const result = await runOrchestrator(
+      { message, history: [] },
+      provider,
+      { embeddingProvider: fakeEmbeddingProvider, supabase: fakeSupabase },
+    );
+
+    expect(result.matchedTopics).toEqual(["ai-maturity-index"]);
+    expect(result.escalation).toBeNull();
   });
 
   it("falls back to UNKNOWN and escalates when classification fails", async () => {

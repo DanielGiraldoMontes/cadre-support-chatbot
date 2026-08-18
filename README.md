@@ -26,10 +26,13 @@ flowchart TD
   RL --> ORCH[AI Orchestrator]
   ORCH --> INTENT[Intent Router]
   ORCH --> LOOKUP[Deterministic Topic Lookup]
+  LOOKUP -->|no match, KNOWLEDGE only| SEM[Semantic Fallback: embed + pgvector]
+  SEM --> VDB[(knowledge_embeddings)]
   ORCH --> FLOW[Business Flows]
   ORCH --> ESC[Escalation]
   LOOKUP --> KB[knowledge/*.md -> generated module]
   ORCH --> OR[OpenRouter]
+  SEM --> OR
   ORCH --> DB[(Supabase)]
   DB --> UI
 ```
@@ -99,7 +102,7 @@ This is intentionally conservative so broken code does not roll out automaticall
 
 ## Design decisions
 
-- Deterministic-first grounding for Cadre knowledge
+- Deterministic-first grounding for Cadre knowledge, with a semantic (pgvector) fallback for paraphrased questions the keyword layer misses — never a replacement for the deterministic path, only a second chance before escalating
 - OpenRouter only in the shipped app
 - Mock provider for local testing
 - No user accounts
@@ -111,6 +114,7 @@ This is intentionally conservative so broken code does not roll out automaticall
 
 - Multi-device sync is not part of the initial scope.
 - The app should prefer safe escalation over guesswork.
+- No visibility yet into how often the semantic fallback fires versus the deterministic layer — `messages.matched_topic` doesn't record which layer produced a match. A stated next step (a log line, not a schema change), not a silent gap.
 
 ## Demo flow
 

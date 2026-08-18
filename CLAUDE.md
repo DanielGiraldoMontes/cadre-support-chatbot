@@ -192,9 +192,13 @@ Preferred shape:
 interface LLMProvider {
   generateResponse(input: LLMInput): Promise<LLMResponse>;
 }
+
+interface EmbeddingProvider {
+  embed(text: string): Promise<number[]>;
+}
 ```
 
-The only implementation is `OpenRouterProvider`. There is no second provider class in this codebase, for chat or for embeddings (Section 9, Step 2 also calls OpenRouter).
+The only chat implementation is `OpenRouterProvider`; the only embedding implementation is `OpenRouterEmbeddingProvider` (Section 9, Step 2). Both live in `lib/ai/openrouter.ts` and both call OpenRouter — there is no second *vendor* anywhere in this codebase, for chat or for embeddings, and no `gemini.ts`/`anthropic.ts`/etc. should ever be added.
 
 Do not create a generic enterprise provider framework.
 
@@ -303,9 +307,9 @@ knowledge/*.md  →  scripts/build-knowledge.ts  →  lib/knowledge/generated.ts
 
 ---
 
-# 9. Knowledge Lookup — deterministic-first (P0, complete on its own), semantic stretch second (P2)
+# 9. Knowledge Lookup — deterministic-first (P0), semantic fallback second (implemented)
 
-Full RAG (chunking + embeddings + similarity search) is **not** the primary grounding mechanism, and it isn't even simpler to build than the alternative below — it trades a keyword map for an embeddings pipeline, a similarity threshold, and non-obvious test fixtures, to solve a scale/ambiguity problem this ~9-document corpus doesn't have. Instead:
+Full RAG (chunking + embeddings + similarity search) is **not** the primary grounding mechanism — it would trade a keyword map for an embeddings pipeline, a similarity threshold, and non-obvious test fixtures, to solve a scale/ambiguity problem this ~9-document corpus doesn't have. Instead, deterministic keyword matching is the primary mechanism, with a targeted semantic pass as a second-chance fallback only when the deterministic layer misses — not a replacement for it, and not general RAG over everything:
 
 ## Step 1 (P0 — complete and shippable on its own) — Deterministic topic lookup
 
@@ -325,28 +329,34 @@ no match  → escalate (P0 behavior — stops here unless Step 2 was built)
 
 Deterministic topic lookup is exactly and cheaply unit-testable, adds zero latency to the common case, and is a fully sufficient, defensible answer to "Cadre knowledge answers" by itself. Do not treat it as incomplete without Step 2.
 
-## Step 2 (P2/stretch — build only after P0 is solid and every P1 item is done)
+## Step 2 (implemented — built after P0 and every P1 item were done)
 
-Not a P1 commitment. Follows "cut scope aggressively — 3 working features beat 8 broken ones": a fragile stretch feature is worse than not building it. If time runs out before this, that's correct, not a shortfall.
+Was a P2/stretch item, not a P1 commitment, per "cut scope aggressively — 3 working features beat 8 broken ones." Built only once P0 and P1 were solid, so it stayed additive rather than risking the tested primary path.
 
-Rather than escalate immediately on a keyword miss, try one semantic pass over the same finite document set before giving up — this catches real questions phrased differently than the trigger terms anticipate (e.g. "your eight-pillar scoring thing" instead of "AI Maturity Index").
+Rather than escalate immediately on a keyword miss, try one semantic pass over the same finite document set before giving up — this catches real questions phrased differently than the trigger terms anticipate (e.g. "how do you measure how AI-ready a company is" instead of "AI Maturity Index").
 
 ```text
-no match from Step 1
+no match from Step 1 (intent = KNOWLEDGE only)
   ↓
-embed the message (OpenRouter `/embeddings` endpoint — same `OPENROUTER_API_KEY` as chat — see PLAN.md Phase 7)
+embed the message (OpenRouter `/embeddings` endpoint, `openai/text-embedding-3-small` — same `OPENROUTER_API_KEY` as chat)
   ↓
-cosine-similarity search over pre-embedded knowledge docs (Supabase pgvector)
+cosine-similarity search via the `match_knowledge_embedding` Postgres function (Supabase pgvector)
   ↓
-best match above threshold → inject it, done
-below threshold / no result → escalate
+best match above threshold (0.75, see below) → inject it, done
+below threshold / no result / any failure → escalate
 ```
 
 Document-level embeddings, not paragraph chunking — each `knowledge/*.md` file is short enough to embed whole; chunking would solve a document-size problem that doesn't exist here.
 
-Never fall back to the model's own general knowledge about Cadre — if both steps come up empty (or Step 2 was never built), escalate.
+No ivfflat/hnsw index on `knowledge_embeddings` — 9 rows means a sequential scan is exact and effectively free; an approximate index needs real row count to earn its write overhead. Revisit only if the corpus grows to hundreds of documents.
 
-Keep `selectTopics()` (Step 1) and `semanticFallback()` (Step 2) as small, independently unit-tested functions, the latter tested with a mocked embedding client, not a live API call.
+Similarity threshold is `0.75`, defined in `lib/knowledge/semanticFallback.ts` — a documented, untuned, conservative default (not derived from a real eval set), chosen to bias toward precision: more escalations, fewer wrong-topic answers, which is the correct failure direction per Section 3 ("a safe limitation is better than a confident hallucination").
+
+Never fall back to the model's own general knowledge about Cadre — if both steps come up empty, or any part of the fallback fails (embed error, RPC error, missing env config), escalate. `semanticFallback()` never throws; every failure mode degrades to "no match."
+
+Known observability gap: `messages.matched_topic` doesn't currently record *which* layer (Step 1 vs Step 2) produced a match, so there's no way to tell from persisted data alone how often the fallback actually fires. A cheap future fix is a `console.log` of `{intent, matchedTopic, source, similarity}` inside the orchestrator branch — not a schema change. Worth a log check after deploy to confirm the fallback isn't silently dead due to a missing `OPENROUTER_EMBEDDING_MODEL` in production secrets.
+
+`selectTopics()` (Step 1) and `semanticFallback()` (Step 2) are small, independently unit-tested functions — the latter tested with a mocked embedding client and a stubbed Supabase `.rpc()` call, never a live API call.
 
 ---
 
@@ -535,7 +545,7 @@ escalations     id, conversation_id (FK), message_id (FK), reason, created_at
 rate_limits     key (IP), window_start, count
 ```
 
-A `knowledge_embeddings` table (`topic_id text primary key, embedding vector(1536), content text` — 1536 matches `openai/text-embedding-3-small` via OpenRouter, see PLAN.md Phase 7) is added only in P2/stretch, only for the semantic fallback (Section 9, Step 2) — not before, and not at all unless Step 2 gets built. Do not add it while still on P0/P1.
+`knowledge_embeddings` (`topic_id text primary key, embedding vector(1536), content text, updated_at timestamptz` — 1536 matches `openai/text-embedding-3-small` via OpenRouter) backs the Section 9 Step 2 semantic fallback, populated by the manual `npm run embed:knowledge` script (never on every deploy — only when knowledge content changes). RLS enabled, no policies, same posture as every other table here (service-role only).
 
 Every schema change must have a migration.
 
@@ -1009,7 +1019,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 OPENROUTER_API_KEY
 OPENROUTER_MODEL              (chat)
-OPENROUTER_EMBEDDING_MODEL    (openai/text-embedding-3-small, 1536 dimensions — add only if Phase 7 Step 2 / P2 semantic fallback gets built; omit entirely otherwise)
+OPENROUTER_EMBEDDING_MODEL    (openai/text-embedding-3-small, 1536 dimensions — powers the Section 9 Step 2 semantic fallback)
 ```
 
 No extra AI provider variables belong in this file beyond the OpenRouter settings already described above.

@@ -40,11 +40,11 @@ The main objective is to reach a stable, deployed P0 before spending time on opt
 
 ## P2 — Optional
 
-- semantic fallback for knowledge lookup (pgvector, only when deterministic lookup misses — design is fully specified in Phase 7 Step 2, build it only if P0 and all of P1 are done and time remains)
+- ~~semantic fallback for knowledge lookup~~ — **done**, see Phase 7 Step 2 (pgvector, only when deterministic lookup misses, built after P0 and all of P1 were solid)
 - AI Maturity Index mini-assessment
 - streaming
-- suggested prompts
-- lightweight analytics
+- suggested prompts — **done**, see `components/chat/StarterPrompts.tsx`
+- lightweight analytics — largely already covered by `messages.intent`/`messages.matched_topic` persisted per turn; a dedicated dashboard is explicitly out of scope (Section 2)
 
 P2 is expendable.
 
@@ -69,7 +69,7 @@ Next.js
           │
           ├── Intent Router
           ├── Deterministic Topic Lookup  (knowledge/*.md → generated.ts, P0)
-          ├── Semantic Fallback  (OpenRouter /embeddings, P2/stretch, only on no match)
+          ├── Semantic Fallback  (OpenRouter /embeddings, implemented — only on no match, KNOWLEDGE intent only)
           ├── Business Flows
           └── Escalation
                   │
@@ -86,10 +86,10 @@ conversations
 messages
 escalations
 rate_limits
-knowledge_embeddings   (P2/stretch — topic_id, embedding vector(1536), content)
+knowledge_embeddings   (topic_id, embedding vector(1536), content, updated_at — Step 2 semantic fallback)
 ```
 
-Vector usage is scoped to the P2 semantic fallback only — see Phase 7. It ships only if P0 and P1 are done and time remains, and it uses OpenRouter's `/embeddings` endpoint, not a second provider.
+Vector usage is scoped to the semantic fallback only — see Phase 7. It uses OpenRouter's `/embeddings` endpoint, not a second provider.
 
 ---
 
@@ -494,9 +494,9 @@ Out-of-scope/unmatched questions escalate cleanly — no invented context, no de
 
 ---
 
-## Step 2 — Semantic fallback (P2/stretch — build only if P0 + all of P1 are done)
+## Step 2 — Semantic fallback (implemented, after P0 + all of P1 were done)
 
-Do not start this until Phase 1 through Phase 14 (Testing) are green. If time runs out before reaching this section, that's the correct outcome, not a shortfall — say so plainly in the review.
+Built only once Phase 1 through Phase 14 (Testing) were green, per the original P2/stretch gate below.
 
 ## Embedding provider (firm decision — OpenRouter only)
 
@@ -508,20 +508,24 @@ Locked-in choice: `openai/text-embedding-3-small` via `POST https://openrouter.a
 
 Each `knowledge/*.md` file is short (a few hundred words). Embed the whole document, not paragraph-level chunks — chunking is a solution to a problem (documents too large for one embedding / one context window) that doesn't exist at this size, and skipping it removes a whole layer of chunking-boundary bugs.
 
-### Tasks
+### Tasks (done — deviations from the original sketch noted)
 
-- [ ] `create extension if not exists vector;` (Supabase migration)
-- [ ] Migration: `knowledge_embeddings(topic_id text primary key, embedding vector(1536), content text)`
-- [ ] `scripts/embed-knowledge.ts` — embeds each `knowledge/*.md` file once via `openai/text-embedding-3-small` through OpenRouter's `/embeddings` endpoint, upserts into `knowledge_embeddings`; run manually/in CI when knowledge content changes, not on every deploy
-- [ ] `lib/knowledge/semanticFallback.ts` — embeds the incoming message via the same endpoint/model, runs `ORDER BY embedding <=> $1 LIMIT 1`, applies a similarity threshold
-- [ ] Unit test with a mocked embedding client and fixed vectors — no real API calls in tests
-- [ ] Wire into the orchestrator: only called when Step 1's `selectTopics()` returns empty
+- [x] `create extension if not exists vector;` (`supabase/migrations/0002_knowledge_embeddings.sql`)
+- [x] Migration: `knowledge_embeddings(topic_id text primary key, embedding vector(1536), content text, updated_at timestamptz)`, RLS enabled, no index (9 rows — a sequential scan is exact and free; deferred until the corpus is large enough to earn an ivfflat/hnsw index)
+- [x] `scripts/embed-knowledge.ts` — embeds each `knowledge/*.md` file once via `openai/text-embedding-3-small` through OpenRouter's `/embeddings` endpoint, upserts into `knowledge_embeddings`. Manual only (`npm run embed:knowledge`), never wired into `prebuild` or CI. Refuses to run under `NODE_ENV=production` without `--force`, and prints the target Supabase URL before writing.
+- [x] `lib/knowledge/semanticFallback.ts` — embeds the incoming message, calls a `match_knowledge_embedding` Postgres RPC function (not a raw `ORDER BY` — supabase-js can't bind a vector literal into `.order()` cleanly) with `match_threshold = 0.75` (documented, untuned, conservative default — see `CLAUDE.md` Section 9). Never throws; every failure (embed error, RPC error, no rows above threshold) returns `null`.
+- [x] Unit tests (`tests/semanticFallback.test.ts`) with a mocked embedding provider and a stubbed Supabase `.rpc()` — hit, miss, and error paths. No real API calls.
+- [x] Wired into the orchestrator: only called when intent is `KNOWLEDGE` and Step 1's `selectTopics()` returns empty. Dependencies (`embeddingProvider`, `supabase`) are constructed lazily inside that branch, not as bare parameter defaults — so every pre-existing `runOrchestrator()` call site (tests and the route handler) needed zero changes.
 
-### Exit criteria for P2
+### Exit criteria for P2 — met
 
-A representative paraphrased question that the keyword layer misses (e.g. asking about "your eight-pillar scoring thing" instead of "AI Maturity Index") resolves correctly via the semantic fallback, verified by test with a mocked embedding response.
+A representative paraphrased question that the keyword layer misses ("How do you measure how AI-ready a company is?" instead of "AI Maturity Index") resolves correctly via the semantic fallback, verified by test with a mocked embedding response (`tests/orchestrator.test.ts`).
 
-Unknown/out-of-scope questions still fall through to escalation, not invented context.
+Unknown/out-of-scope questions still fall through to escalation, not invented context — unchanged, and covered by the pre-existing evaluation fixture.
+
+### Known deviation / follow-up
+
+`messages.matched_topic` doesn't record which layer (Step 1 vs Step 2) produced a match, so there's currently no way to tell from persisted data how often the fallback fires. Noted as a stated gap, not a silent one — a `console.log` of `{intent, matchedTopic, source, similarity}` in the orchestrator would close it cheaply without a schema change.
 
 ---
 
