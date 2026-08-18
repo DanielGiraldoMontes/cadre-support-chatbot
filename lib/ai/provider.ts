@@ -20,6 +20,10 @@ export interface LLMProvider {
   generateResponse(input: LLMInput): Promise<LLMResponse>;
 }
 
+export interface EmbeddingProvider {
+  embed(text: string): Promise<number[]>;
+}
+
 export class ProviderError extends Error {
   constructor(
     message: string,
