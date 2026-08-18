@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/*
+ * Placeholder brand palette (CLAUDE.md Section 20.1).
+ * Not confirmed against cadreai.com's real brand values yet — conservative
+ * near-navy/near-black primary, one warm accent, off-white background.
+ * Replace with confirmed hex values before final review if time allows.
+ */
+:root {
+  --background: #fafaf9;
+  --foreground: #171717;
+  --cadre-primary: #10182b;
+  --cadre-primary-foreground: #fafaf9;
+  --cadre-accent: #c98a4b;
+  --cadre-background: #fafaf9;
+  --cadre-muted: #6b7280;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-cadre-primary: var(--cadre-primary);
+  --color-cadre-primary-foreground: var(--cadre-primary-foreground);
+  --color-cadre-accent: var(--cadre-accent);
+  --color-cadre-background: var(--cadre-background);
+  --color-cadre-muted: var(--cadre-muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --cadre-background: #0a0a0a;
+    --cadre-primary-foreground: #0a0a0a;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
