@@ -5,15 +5,32 @@ import type { TopicId } from "@/lib/knowledge/generated";
 
 /**
  * Cosine-similarity threshold for match_knowledge_embedding (CLAUDE.md
- * Section 9, Step 2). Documented, untuned, conservative default — not
- * derived from a real eval set. Unrelated short texts typically land
- * ~0.0-0.3 cosine similarity with text-embedding-3-small; same-topic
- * paraphrases commonly land 0.6-0.85+. 0.75 biases toward precision (more
- * escalations, fewer wrong-topic answers), which is the correct failure
- * direction per CLAUDE.md Section 3 ("a safe limitation is better than a
- * confident hallucination"). Revisit once real usage data exists.
+ * Section 9, Step 2). Empirically calibrated against real production data
+ * via scripts/debug-similarity.ts, not a blind guess — an earlier 0.75
+ * default turned out to be unreachable in practice and was replaced.
+ *
+ * Two real reference points against the deployed knowledge_embeddings
+ * (openai/text-embedding-3-small, whole-document embeddings):
+ *   - "How do you measure how AI-ready a company is?" (a real paraphrase of
+ *     the AI Maturity Index, containing none of Step 1's keyword triggers)
+ *     scored 0.5578 against the correct doc, with the next-closest
+ *     wrong-topic doc at 0.4949 — a ~0.06 gap.
+ *   - "Can you help me file my taxes?" (the OUT_OF_SCOPE evaluation fixture
+ *     case) topped out at 0.0726 against every doc — roughly 7-8x lower
+ *     than the true match above.
+ * The out-of-scope margin is enormous regardless of where the threshold
+ * sits in the 0.1-0.6 range, so the real tuning question is separating a
+ * correct topic from a wrong-but-related one in this corpus, not from true
+ * noise. 0.5 sits with margin below the one confirmed true match (room for
+ * a real user's phrasing to score a bit lower than this sample) and just
+ * above the highest wrong-topic score observed. A wrong-topic match within
+ * this corpus is a soft failure (still-truthful Cadre content, just
+ * possibly not the best-fit doc) — the hard failure this design actually
+ * guards against, a confident answer to something unrelated, has the ~7-8x
+ * margin above. Still just two real data points, not a full eval set —
+ * revisit with more real traffic.
  */
-export const SIMILARITY_THRESHOLD = 0.75;
+export const SIMILARITY_THRESHOLD = 0.5;
 
 interface MatchRow {
   topic_id: string;

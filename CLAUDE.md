@@ -342,7 +342,7 @@ embed the message (OpenRouter `/embeddings` endpoint, `openai/text-embedding-3-s
   ↓
 cosine-similarity search via the `match_knowledge_embedding` Postgres function (Supabase pgvector)
   ↓
-best match above threshold (0.75, see below) → inject it, done
+best match above threshold (0.5, see below) → inject it, done
 below threshold / no result / any failure → escalate
 ```
 
@@ -350,7 +350,7 @@ Document-level embeddings, not paragraph chunking — each `knowledge/*.md` file
 
 No ivfflat/hnsw index on `knowledge_embeddings` — 9 rows means a sequential scan is exact and effectively free; an approximate index needs real row count to earn its write overhead. Revisit only if the corpus grows to hundreds of documents.
 
-Similarity threshold is `0.75`, defined in `lib/knowledge/semanticFallback.ts` — a documented, untuned, conservative default (not derived from a real eval set), chosen to bias toward precision: more escalations, fewer wrong-topic answers, which is the correct failure direction per Section 3 ("a safe limitation is better than a confident hallucination").
+Similarity threshold is `0.5`, defined in `lib/knowledge/semanticFallback.ts` — empirically calibrated via `scripts/debug-similarity.ts` against two real data points on the deployed embeddings, not a blind guess. An initial `0.75` default (reasoned from general expectations about same-topic paraphrase similarity, not measured) turned out to be unreachable in practice: a genuine paraphrase of the AI Maturity Index scored 0.5578 against the correct doc, while a true out-of-scope question ("Can you help me file my taxes?", the existing `OUT_OF_SCOPE` eval case) topped out at 0.0726 — a ~7-8x gap. That gap is large enough that the threshold's exact position barely matters for rejecting genuinely unrelated questions; the real tuning question is separating a correct topic from a wrong-but-related one in this small corpus (the closest wrong topic for that same paraphrase scored 0.4949). `0.5` sits with margin on both sides of that pair. See `scripts/debug-similarity.ts` for the tool used to gather this — a dev-only diagnostic, not part of the app, kept in the repo for future recalibration.
 
 Never fall back to the model's own general knowledge about Cadre — if both steps come up empty, or any part of the fallback fails (embed error, RPC error, missing env config), escalate. `semanticFallback()` never throws; every failure mode degrades to "no match."
 
