@@ -5,7 +5,7 @@
   "scripts": {
     "prebuild": "npm run build:knowledge",
     "build:knowledge": "tsx scripts/build-knowledge.ts",
-    "embed:knowledge": "npm run build:knowledge && tsx scripts/embed-knowledge.ts",
+    "embed:knowledge": "npm run build:knowledge && tsx --env-file=.env.local scripts/embed-knowledge.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
