@@ -108,7 +108,9 @@ describe("runOrchestrator", () => {
     });
     const fakeEmbeddingProvider: EmbeddingProvider = { async embed() { return [0.1, 0.2, 0.3]; } };
     const fakeSupabase = {
-      rpc: async () => ({ data: [{ topic_id: "ai-maturity-index", similarity: 0.86 }] }),
+      rpc: () => ({
+        abortSignal: () => Promise.resolve({ data: [{ topic_id: "ai-maturity-index", similarity: 0.86 }] }),
+      }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
