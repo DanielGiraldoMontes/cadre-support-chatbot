@@ -106,5 +106,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     reply: result.reply,
     escalated: result.escalation !== null,
+    cta: result.cta,
   });
 }

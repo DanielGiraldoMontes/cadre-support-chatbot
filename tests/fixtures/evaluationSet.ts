@@ -63,7 +63,7 @@ export const EVALUATION_SET: EvaluationCase[] = [
     expectedOutcome: "answer",
     expectedTopics: ["getting-started"],
     expectedBehavior:
-      "Routes to the verified getting-started guidance; never invents a booking URL.",
+      "Routes to the verified getting-started guidance and surfaces the one verified contact CTA; never invents a booking URL.",
   },
   {
     category: "PORTAL",

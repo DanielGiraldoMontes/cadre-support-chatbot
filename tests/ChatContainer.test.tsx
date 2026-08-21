@@ -128,4 +128,31 @@ describe("ChatContainer", () => {
       "true",
     );
   });
+
+  it("renders a booking CTA link when the response includes one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) => {
+        if (init) {
+          return Promise.resolve(
+            jsonResponse(true, {
+              reply: "Here's how to get started.",
+              escalated: false,
+              cta: { label: "Talk to an AI Strategist", url: "https://www.cadreai.com/contact" },
+            }),
+          );
+        }
+        return Promise.resolve(jsonResponse(true, { messages: [] }));
+      }),
+    );
+
+    await renderReady();
+
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "I'd like to book a call" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const link = await screen.findByRole("link", { name: /Talk to an AI Strategist/ });
+    expect(link).toHaveAttribute("href", "https://www.cadreai.com/contact");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
 });

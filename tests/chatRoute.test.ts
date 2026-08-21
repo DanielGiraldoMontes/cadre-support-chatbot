@@ -64,6 +64,7 @@ describe("POST /api/chat", () => {
       intent: "KNOWLEDGE",
       matchedTopics: ["about-cadre"],
       escalation: null,
+      cta: null,
     });
 
     const res = await POST(
@@ -73,6 +74,24 @@ describe("POST /api/chat", () => {
     const json = await res.json();
     expect(json.reply).toBe("Cadre AI is a consultancy.");
     expect(json.escalated).toBe(false);
+    expect(json.cta).toBeNull();
+  });
+
+  it("passes through the orchestrator's booking CTA", async () => {
+    const cta = { label: "Talk to an AI Strategist", url: "https://www.cadreai.com/contact" };
+    vi.mocked(runOrchestrator).mockResolvedValue({
+      reply: "Here's how to get started.",
+      intent: "BOOK_CALL",
+      matchedTopics: ["getting-started"],
+      escalation: null,
+      cta,
+    });
+
+    const res = await POST(
+      makeRequest({ conversationId: VALID_CONVERSATION_ID, message: "I'd like to book a call" }),
+    );
+    const json = await res.json();
+    expect(json.cta).toEqual(cta);
   });
 
   it("returns 502 with a friendly message on provider failure", async () => {

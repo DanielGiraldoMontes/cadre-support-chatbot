@@ -6,7 +6,7 @@ The verified, official next step for anyone who wants to start working with Cadr
 
 ## Key facts
 
-- The verified path is Cadre's contact page — framed as "Talk to an AI Strategist." This project does not have a separate, verified self-serve booking/calendar link (e.g. a direct Calendly URL) — do not invent one.
+- The verified path is Cadre's contact page at https://www.cadreai.com/contact — framed as "Talk to an AI Strategist." This project does not have a separate, verified self-serve booking/calendar link (e.g. a direct Calendly URL) beyond this contact page — do not invent one.
 - Getting the AI Maturity Index scored is also positioned as an entry point — see `ai-maturity-index.md`.
 - There is no verified separate "sign up" or account-creation flow distinct from initiating contact — engagement starts with a conversation, not a self-serve signup.
 

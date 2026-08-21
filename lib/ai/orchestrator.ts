@@ -4,7 +4,7 @@ import { getProvider } from "@/lib/ai/getProvider";
 import { SYSTEM_PROMPT, buildIntentClassificationPrompt } from "@/lib/ai/prompts";
 import { ProviderError, type EmbeddingProvider, type LLMProvider } from "@/lib/ai/provider";
 import { IntentClassificationSchema } from "@/lib/ai/schemas";
-import { getBookingTopics } from "@/lib/business/booking";
+import { getBookingCta, getBookingTopics, type BookingCta } from "@/lib/business/booking";
 import {
   buildEscalation,
   type EscalationReason,
@@ -32,6 +32,7 @@ export interface OrchestratorResult {
   intent: Intent;
   matchedTopics: TopicId[];
   escalation: EscalationResult | null;
+  cta: BookingCta | null;
 }
 
 export interface OrchestratorDeps {
@@ -154,9 +155,12 @@ export async function runOrchestrator(
 
   if (topics.length === 0) {
     const escalation = buildEscalation(escalationReasonFor(intent));
-    return { reply: escalation.message, intent, matchedTopics: [], escalation };
+    // Escalating always means "talk to a human" — pair the message with the
+    // one verified way to actually do that (CLAUDE.md Section 13).
+    return { reply: escalation.message, intent, matchedTopics: [], escalation, cta: getBookingCta() };
   }
 
   const reply = await generateGroundedReply(provider, { message, history: input.history, topics });
-  return { reply, intent, matchedTopics: topics, escalation: null };
+  const cta = intent === "BOOK_CALL" ? getBookingCta() : null;
+  return { reply, intent, matchedTopics: topics, escalation: null, cta };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runOrchestrator } from "@/lib/ai/orchestrator";
 import type { EmbeddingProvider, LLMInput, LLMProvider, LLMResponse } from "@/lib/ai/provider";
+import { CADRE_CONTACT_URL } from "@/lib/business/booking";
 import { selectTopics } from "@/lib/business/topicRouting";
 
 function fakeProvider(opts: {
@@ -29,9 +30,10 @@ describe("runOrchestrator", () => {
     expect(result.matchedTopics).toEqual(["about-cadre", "services"]);
     expect(result.escalation).toBeNull();
     expect(result.reply).toBe("Cadre AI is a consultancy.");
+    expect(result.cta).toBeNull();
   });
 
-  it("routes BOOK_CALL to the getting-started topic", async () => {
+  it("routes BOOK_CALL to the getting-started topic with a verified booking CTA", async () => {
     const provider = fakeProvider({ intent: "BOOK_CALL", reply: "Talk to an AI strategist." });
     const result = await runOrchestrator(
       { message: "I'd like to speak with someone", history: [] },
@@ -41,6 +43,7 @@ describe("runOrchestrator", () => {
     expect(result.intent).toBe("BOOK_CALL");
     expect(result.matchedTopics).toEqual(["getting-started"]);
     expect(result.escalation).toBeNull();
+    expect(result.cta).toEqual({ label: "Talk to an AI Strategist", url: CADRE_CONTACT_URL });
   });
 
   it("routes CLIENT_PORTAL to the portal topic", async () => {
@@ -66,6 +69,7 @@ describe("runOrchestrator", () => {
 
     expect(result.escalation?.reason).toBe("unsupported_request");
     expect(result.matchedTopics).toEqual([]);
+    expect(result.cta).toEqual({ label: "Talk to an AI Strategist", url: CADRE_CONTACT_URL });
   });
 
   it("escalates a KNOWLEDGE intent with no topic match", async () => {
@@ -83,6 +87,7 @@ describe("runOrchestrator", () => {
     const result = await runOrchestrator({ message: "I need to talk to a human about my account", history: [] }, provider);
 
     expect(result.escalation?.reason).toBe("client_specific");
+    expect(result.cta).toEqual({ label: "Talk to an AI Strategist", url: CADRE_CONTACT_URL });
   });
 
   it("resolves a bare follow-up using recent user history", async () => {

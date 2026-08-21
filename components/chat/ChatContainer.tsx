@@ -68,6 +68,7 @@ export function ChatContainer() {
           role: "assistant",
           content: data.reply,
           escalated: data.escalated,
+          cta: data.cta,
         },
       ]);
     } catch {

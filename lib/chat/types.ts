@@ -1,8 +1,14 @@
+export interface ChatCta {
+  label: string;
+  url: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   escalated?: boolean;
+  cta?: ChatCta | null;
 }
 
 export const STARTER_PROMPTS = [

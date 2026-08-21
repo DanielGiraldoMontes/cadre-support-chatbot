@@ -29,7 +29,22 @@ export function MessageBubble({ message, loading }: Props) {
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
           </span>
         ) : (
-          message.content
+          <>
+            {message.content}
+            {message.cta && (
+              <div className="mt-2">
+                <a
+                  href={message.cta.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-cadre-primary px-3 py-1.5 text-sm font-medium text-cadre-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  {message.cta.label}
+                  <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
