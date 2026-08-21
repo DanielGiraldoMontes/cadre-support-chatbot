@@ -107,5 +107,6 @@ export async function POST(request: Request) {
     reply: result.reply,
     escalated: result.escalation !== null,
     cta: result.cta,
+    intent: result.intent,
   });
 }

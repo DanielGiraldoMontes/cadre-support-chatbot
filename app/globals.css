@@ -40,6 +40,10 @@
        unchanged navy background — close to unreadable. */
     --cadre-primary: #e7e9f2;
     --cadre-primary-foreground: #0a0a0a;
+    /* #6b7280 (light-mode value) has weak contrast against the near-black
+       dark background — brighten it, same idea as the primary/foreground
+       swap above. */
+    --cadre-muted: #9ca3af;
   }
 }
 

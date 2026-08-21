@@ -155,4 +155,33 @@ describe("ChatContainer", () => {
     expect(link).toHaveAttribute("href", "https://www.cadreai.com/contact");
     expect(link).toHaveAttribute("target", "_blank");
   });
+
+  it("renders a distinct pricing bubble for PRICING responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) => {
+        if (init) {
+          return Promise.resolve(
+            jsonResponse(true, {
+              reply: "Pricing depends on scope and isn't published.",
+              escalated: false,
+              intent: "PRICING",
+            }),
+          );
+        }
+        return Promise.resolve(jsonResponse(true, { messages: [] }));
+      }),
+    );
+
+    await renderReady();
+
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "What does this cost?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const bubble = (await screen.findByText("Pricing depends on scope and isn't published.")).closest(
+      '[data-testid="message-bubble"]',
+    );
+    expect(bubble).toHaveAttribute("data-intent", "PRICING");
+    expect(screen.getByText("Pricing")).toBeInTheDocument();
+  });
 });

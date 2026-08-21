@@ -12,7 +12,7 @@ export function StarterPrompts({ onSelect }: Props) {
           key={prompt}
           type="button"
           onClick={() => onSelect(prompt)}
-          className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-cadre-primary transition-colors hover:bg-black/[.03]"
+          className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-cadre-primary transition-colors hover:bg-black/[.03] dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
         >
           {prompt}
         </button>

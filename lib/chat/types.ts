@@ -9,6 +9,7 @@ export interface ChatMessage {
   content: string;
   escalated?: boolean;
   cta?: ChatCta | null;
+  intent?: string;
 }
 
 export const STARTER_PROMPTS = [

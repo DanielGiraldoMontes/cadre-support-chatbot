@@ -75,6 +75,7 @@ describe("POST /api/chat", () => {
     expect(json.reply).toBe("Cadre AI is a consultancy.");
     expect(json.escalated).toBe(false);
     expect(json.cta).toBeNull();
+    expect(json.intent).toBe("KNOWLEDGE");
   });
 
   it("passes through the orchestrator's booking CTA", async () => {

@@ -7,6 +7,7 @@ interface Props {
 
 export function MessageBubble({ message, loading }: Props) {
   const isUser = message.role === "user";
+  const isPricing = !isUser && message.intent === "PRICING" && !message.escalated;
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -14,12 +15,15 @@ export function MessageBubble({ message, loading }: Props) {
         data-testid="message-bubble"
         data-role={message.role}
         data-escalated={Boolean(message.escalated)}
+        data-intent={message.intent}
         className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
             ? "bg-cadre-primary text-cadre-primary-foreground"
             : message.escalated
-              ? "border border-amber-200 bg-amber-50 text-amber-900"
-              : "border border-black/10 bg-white text-foreground"
+              ? "border border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200"
+              : isPricing
+                ? "border border-cadre-accent/40 bg-cadre-accent/10 text-foreground dark:border-cadre-accent/30 dark:bg-cadre-accent/10"
+                : "border border-black/10 bg-white text-foreground dark:border-white/10 dark:bg-white/5"
         }`}
       >
         {loading ? (
@@ -30,6 +34,11 @@ export function MessageBubble({ message, loading }: Props) {
           </span>
         ) : (
           <>
+            {isPricing && (
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-cadre-accent">
+                Pricing
+              </span>
+            )}
             {message.content}
             {message.cta && (
               <div className="mt-2">

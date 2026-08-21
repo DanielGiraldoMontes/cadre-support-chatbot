@@ -69,6 +69,7 @@ export function ChatContainer() {
           content: data.reply,
           escalated: data.escalated,
           cta: data.cta,
+          intent: data.intent,
         },
       ]);
     } catch {
@@ -82,7 +83,10 @@ export function ChatContainer() {
     <div className="flex h-full min-h-0 w-full max-w-2xl flex-1 flex-col">
       <MessageList messages={messages} loading={loading} onStarterPromptSelect={sendMessage} />
       {error && (
-        <p role="alert" className="mx-4 mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p
+          role="alert"
+          className="mx-4 mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300"
+        >
           {error}
         </p>
       )}
